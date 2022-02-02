@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "LandFix",
 	author = "Haze",
 	description = "",
-	version = "1.0",
+	version = "1.1",
 	url = ""
 }
 
@@ -100,14 +100,33 @@ float GetGroundUnits(int client)
 
 void DoLandFix(int client)
 {
-	if(GetEntPropEnt(client, Prop_Data, "m_hGroundEntity") != -1)
+	int iGroundEnt = GetEntPropEnt(client, Prop_Data, "m_hGroundEntity");
+
+	// jump start
+	if(iGroundEnt == -1)
 	{
-		//float difference = (gCV_Units.FloatValue - GetGroundUnits(client)), origin[3];
-		float difference = (1.50 - GetGroundUnits(client)), origin[3];
-		GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
-		origin[2] += difference;
-		SetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
+		return;
 	}
+
+	bool bHasVelocityProp = HasEntProp(iGroundEnt, Prop_Data, "m_vecVelocity");
+
+	if(bHasVelocityProp)
+	{
+		float fVelocity[3];
+		GetEntPropVector(iGroundEnt, Prop_Data, "m_vecVelocity", fVelocity);
+
+		// ground is moving
+		if(fVelocity[2] != 0.0)
+		{
+			return;
+		}
+	}
+
+	//float difference = (gCV_Units.FloatValue - GetGroundUnits(client)), origin[3];
+	float difference = (1.50 - GetGroundUnits(client)), origin[3];
+	GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
+	origin[2] += difference;
+	SetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
 }
 
 public bool PlayerFilter(int entity, int mask)
