@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "LandFix",
 	author = "Haze",
 	description = "",
-	version = "1.0",
+	version = "1.1",
 	url = ""
 }
 
