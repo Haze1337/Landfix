@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "LandFix",
 	author = "Haze",
 	description = "",
-	version = "1.1",
+	version = "1.2",
 	url = ""
 }
 
@@ -17,6 +17,8 @@ public Plugin myinfo =
 Handle gH_CookieEnabled = null;
 
 bool gB_Enabled[MAXPLAYERS+1] = {false, ...};
+
+int gI_LastGroundEntity[MAXPLAYERS + 1];
 
 public void OnPluginStart()
 {
@@ -32,28 +34,16 @@ public void OnPluginStart()
 		if(IsClientInGame(i) && AreClientCookiesCached(i))
 		{
 			OnClientCookiesCached(i);
-			OnClientPutInServer(i);
 		}
 	}
 }
 
 public void OnClientCookiesCached(int client)
 {
-	char strCookie[8];
-	GetClientCookie(client, gH_CookieEnabled, strCookie, sizeof(strCookie));
-	gB_Enabled[client] = view_as<bool>(StringToInt(strCookie));
-}
-
-public void OnClientPutInServer(int client)
-{
-	SDKHook(client, SDKHook_GroundEntChangedPost, OnGroundChange);
-}
-
-public void OnGroundChange(int client)
-{
-	if(!gB_Enabled[client]) return;
+	char sCookie[8];
 	
-	RequestFrame(DoLandFix, client);
+	GetClientCookie(client, gH_CookieEnabled, sCookie, sizeof(sCookie));
+	gB_Enabled[client] = view_as<bool>(StringToInt(sCookie));
 }
 
 public Action Command_LandFix(int client, int args)
@@ -83,50 +73,61 @@ float GetGroundUnits(int client)
 	originBelow[2] = origin[2] - 2.0;
 
 	TR_TraceHullFilter(origin, originBelow, landingMins, landingMaxs, MASK_PLAYERSOLID, PlayerFilter, client);
-	
-	if(TR_DidHit())
-	{
-		TR_GetEndPosition(originBelow, null);
-		float defaultheight = originBelow[2] - RoundToFloor(originBelow[2]);
-		if(defaultheight > 0.03125) defaultheight = 0.03125;
-		float heightbug = origin[2] - originBelow[2] + defaultheight;
-		return heightbug;
-	}
-	else
+
+	if(!TR_DidHit())
 	{
 		return 0.0;
 	}
-}
 
-void DoLandFix(int client)
-{
-	int iGroundEnt = GetEntPropEnt(client, Prop_Data, "m_hGroundEntity");
+	TR_GetEndPosition(originBelow, null);
 
-	// jump start
-	if(iGroundEnt == -1)
+	float defaultHeight = originBelow[2] - RoundToFloor(originBelow[2]);
+	if(defaultHeight > 0.03125) 
 	{
-		return;
+		defaultHeight = 0.03125;
 	}
 
-	bool bHasVelocityProp = HasEntProp(iGroundEnt, Prop_Data, "m_vecVelocity");
+	return (origin[2] - originBelow[2] + defaultHeight);
+}
 
-	if(bHasVelocityProp)
+public Action OnPlayerRunCmd(int client, int &buttons)
+{
+	if(IsFakeClient(client))
 	{
-		float fVelocity[3];
-		GetEntPropVector(iGroundEnt, Prop_Data, "m_vecVelocity", fVelocity);
+		return Plugin_Continue;
+	}
 
-		// ground is moving
-		if(fVelocity[2] != 0.0)
+	int iGroundEnt = GetEntPropEnt(client, Prop_Data, "m_hGroundEntity");
+
+	if(gB_Enabled[client]) 
+	{
+		if(iGroundEnt != gI_LastGroundEntity[client] && iGroundEnt != -1)
 		{
-			return;
+			bool bHasVelocityProp = HasEntProp(iGroundEnt, Prop_Data, "m_vecVelocity");
+
+			if(bHasVelocityProp)
+			{
+				float fVelocity[3];
+				GetEntPropVector(iGroundEnt, Prop_Data, "m_vecVelocity", fVelocity);
+
+				// ground is moving
+				if(fVelocity[2] != 0.0)
+				{
+					return Plugin_Continue;
+				}
+			}
+
+			//float difference = (gCV_Units.FloatValue - GetGroundUnits(client)), origin[3];
+			float difference = (1.50 - GetGroundUnits(client)), origin[3];
+			GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
+			origin[2] += difference;
+			SetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
 		}
 	}
 
-	//float difference = (gCV_Units.FloatValue - GetGroundUnits(client)), origin[3];
-	float difference = (1.50 - GetGroundUnits(client)), origin[3];
-	GetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
-	origin[2] += difference;
-	SetEntPropVector(client, Prop_Data, "m_vecAbsOrigin", origin);
+	gI_LastGroundEntity[client] = iGroundEnt;
+
+	return Plugin_Continue;
 }
 
 public bool PlayerFilter(int entity, int mask)
