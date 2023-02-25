@@ -9,7 +9,7 @@ public Plugin myinfo =
 	name = "LandFix",
 	author = "Haze",
 	description = "",
-	version = "1.2",
+	version = "1.3",
 	url = ""
 }
 
@@ -103,6 +103,11 @@ public Action OnPlayerRunCmd(int client, int &buttons)
 	{
 		if(iGroundEnt != gI_LastGroundEntity[client] && iGroundEnt != -1)
 		{
+			if(HasEntProp(iGroundEnt, Prop_Data, "m_currentSound")) //retrowave mega fix
+			{
+				return Plugin_Continue;
+			}
+
 			bool bHasVelocityProp = HasEntProp(iGroundEnt, Prop_Data, "m_vecVelocity");
 
 			if(bHasVelocityProp)
